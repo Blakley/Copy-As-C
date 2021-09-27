@@ -16,4 +16,8 @@
 * Under the `Proxy/HTTP History` tab, right click any request and apply the extension
 * When intercepting a request, click the `action` button and then apply the extension
 
+### Extension Screenshot
+![Alt text](burp.png?raw=true)
 
+### Output Screenshot
+![Alt text](program.png?raw=true)
