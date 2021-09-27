@@ -55,6 +55,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
         request = self._helpers.analyzeRequest(self._context.getSelectedMessages()[0])  
         
         # extract content out of response
+        self.data = ''.join(map(chr, self._context.getSelectedMessages()[0].getRequest())).split('\r\n\r\n')[1]
+
         value = str(request.getHeaders())
         value = value[1:]
         value = value[:-1]
@@ -103,15 +105,24 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
         self.request_cookies = '// request cookies\n' + '\t\t' + self.request_cookies
         if self.request_cookies.strip() == '// request cookies':
             self.request_cookies = ''
-        
+
+        if len(self.data) != 0:
+            self.request_post = 'static const char* post_content = "' + self.data + '";'
+        else
+            self.request_post = ""
+
+        self._stdout.println( 
+            (self.data)
+        )
+
         return menu
 
 
     def createProgram(self, event):
-        post_program = '''
-
-        
-        '''
+        # handle post requests
+        post_code = "\n// post request\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_content);\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(post_content));\n"
+        if self.request_post == "":
+            post_code = ""
 
         get_program = '''
 /*************************************************************************** 
@@ -143,6 +154,8 @@ int main(void) {
     curl_global_init(CURL_GLOBAL_DEFAULT);
     request = curl_easy_init();
 
+    %s
+
     // request url
     char* url = %s
     if (request) {
@@ -152,7 +165,7 @@ int main(void) {
         %s
         
         %s
-
+        %s
         // send request
         curl_easy_setopt(request, CURLOPT_URL, url); 
         curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write); // output variable
@@ -169,20 +182,17 @@ int main(void) {
     char* ret;
     ret = strstr(response, "google");
     if (ret)
-        printf(response); // print output
+        printf("%s\n", response); // print output
     else
         printf("google was found in response");
 
     return 0;
 }
-        ''' % (self.request_url, self.request_headers, self.request_cookies)
+        ''' % (self.request_post, self.request_url, self.request_headers, self.request_cookies, post_code)
 
         # copy to clipboard
-        if self.request_method == 'GET':
-            s = StringSelection(get_program)
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
-        else:
-            s = StringSelection(post_program)
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
+        s = StringSelection(get_program)
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
+        
 
         
