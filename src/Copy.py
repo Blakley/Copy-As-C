@@ -43,9 +43,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
 
 
     def createMenuItems(self, invocation):
-        # TODO: add code for POST in C
-        # TODO: clean up code, add github documentation
-        
         self._context = invocation
         menu = ArrayList()
 
@@ -111,6 +108,11 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
 
 
     def createProgram(self, event):
+        post_program = '''
+
+        
+        '''
+
         get_program = '''
 /*************************************************************************** 
                             [~  __  ~]         
@@ -152,7 +154,9 @@ int main(void) {
         %s
 
         // send request
-        curl_easy_setopt(request, CURLOPT_WRITEDATA, response); // output variable
+        curl_easy_setopt(request, CURLOPT_URL, url); 
+        curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write); // output variable
+        curl_easy_setopt(request, CURLOPT_WRITEDATA, response);
         res = curl_easy_perform(request);
 
         curl_slist_free_all(headers);        
@@ -176,6 +180,9 @@ int main(void) {
         # copy to clipboard
         if self.request_method == 'GET':
             s = StringSelection(get_program)
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
+        else:
+            s = StringSelection(post_program)
             Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
 
         
