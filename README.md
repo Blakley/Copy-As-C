@@ -11,6 +11,7 @@
 ## Installation
 * Download Copy.y
 * In Burp Suite, navigate to the `Extender/Extensions` tab, then click the `Add` button and select the `Copy.y` file
+* To run the C program, run the following command `gcc program.c -lcurl` then execute the generated `a.out` file
 
 ## How-To
 * Under the `Proxy/HTTP History` tab, right click any request and apply the extension
@@ -21,6 +22,3 @@
 
 ### Output Screenshot
 ![Alt text](program.png?raw=true)
-
-### TODO
-* Test edge cases
