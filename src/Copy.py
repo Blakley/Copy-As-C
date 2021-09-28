@@ -111,15 +111,16 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
 
 /* Write curl output to variable */
 size_t static curl_write(void *buffer, size_t size, size_t nmemb, void *userp) {
-    userp += strlen(userp);       
-    memcpy(userp, buffer, nmemb);  
-    return nmemb;
+     userp += strlen(userp);       
+     memcpy(userp, buffer, nmemb);  
+     return nmemb;
 }
 
 int main(void) {
     CURL *request;
     CURLcode res;
-    char* response = (char*)malloc(maxn * sizeof(char)); // response content
+
+    char* response = (char*)malloc(maxn * sizeof(char)); 
     %s
     curl_global_init(CURL_GLOBAL_DEFAULT);
     request = curl_easy_init();
@@ -134,22 +135,20 @@ int main(void) {
         curl_easy_setopt(request, CURLOPT_HTTPHEADER, headers);
         %s
         // send request
-        curl_easy_setopt(request, CURLOPT_URL, url); 
-        curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write);
+        curl_easy_setopt(request, CURLOPT_URL, url);       
+        curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write); 
         curl_easy_setopt(request, CURLOPT_WRITEDATA, response);
         %s
-        curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // follow redirects
+        curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // [follow redirects]
         res = curl_easy_perform(request);
 
         curl_slist_free_all(headers);        
         curl_easy_cleanup(request);
     }
-
     curl_global_cleanup();
 
-    // print output
     printf("%%s", response);
-    
+
     return 0;
 }
             ''' % (self.request_post, self.request_url, self.request_headers, self.request_cookies, post_code)
