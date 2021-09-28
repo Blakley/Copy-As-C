@@ -15,12 +15,10 @@
 ## How-To
 * Under the `Proxy/HTTP History` tab, right click any request and apply the extension
 * When intercepting a request, click the `action` button and then apply the extension
+* To run the C program, run the following command `gcc program.c -lcurl` then execute the generated `a.out` file
 
 ### Extension Screenshot
 ![Alt text](burp.png?raw=true)
 
 ### Output Screenshot
 ![Alt text](program.png?raw=true)
-
-### TODO
-* Test edge cases
