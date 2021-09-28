@@ -138,6 +138,7 @@ int main(void) {
         curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write);
         curl_easy_setopt(request, CURLOPT_WRITEDATA, response);
         %s
+        curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // follow redirects
         res = curl_easy_perform(request);
 
         curl_slist_free_all(headers);        
@@ -146,14 +147,9 @@ int main(void) {
 
     curl_global_cleanup();
 
-    // Check output
-    char* ret;
-    ret = strstr(response, "google");
-    if (ret)
-        printf("%%s", response);
-    else
-        printf("google was found in response");
-
+    // print output
+    printf("%%s", response);
+    
     return 0;
 }
             ''' % (self.request_post, self.request_url, self.request_headers, self.request_cookies, post_code)
