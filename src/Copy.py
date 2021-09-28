@@ -10,8 +10,9 @@
 #      About: Burp Extension to copy GET and POST requests as Curl requests in C
 # ********************************************************************************
 
+import re
+
 from burp import IBurpExtender
-from burp import IProxyListener
 from burp import IContextMenuFactory
 
 from java.io import PrintWriter
@@ -20,27 +21,15 @@ from javax.swing import JMenuItem, JMenu
 from java.awt import Toolkit
 from java.awt.datatransfer import StringSelection
 
-class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
+
+class BurpExtender(IBurpExtender, IContextMenuFactory):
         
     def	registerExtenderCallbacks(self, callbacks):
-        # obtain an extension helpers object
         self._helpers = callbacks.getHelpers()
-
-        # keep a reference to our callbacks object
         self._callbacks = callbacks
-
-        # set our extension name
         callbacks.setExtensionName("[C]opy")
-        
-        # setup menu
         callbacks.registerContextMenuFactory(self)
-
-         # obtain our output stream
         self._stdout = PrintWriter(callbacks.getStdout(), True)
-
-        # register listeners
-        callbacks.registerProxyListener(self)
-
 
     def createMenuItems(self, invocation):
         self._context = invocation
@@ -49,82 +38,63 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
         invocation_allowed = [invocation.CONTEXT_MESSAGE_EDITOR_REQUEST, invocation.CONTEXT_PROXY_HISTORY, invocation.CONTEXT_TARGET_SITE_MAP_TABLE]
         
         if self._context.getInvocationContext() in invocation_allowed and len(self._context.selectedMessages) == 1:    
-            menu_item = JMenuItem("C Request", actionPerformed = self.createProgram)
+            menu_item = JMenuItem("C Request", actionPerformed = self.create_program)
             menu.add(menu_item)
 
         request = self._helpers.analyzeRequest(self._context.getSelectedMessages()[0])  
-        
-        # extract content out of response
-        self.data = ''.join(map(chr, self._context.getSelectedMessages()[0].getRequest())).split('\r\n\r\n')[1]
-
-        value = str(request.getHeaders())
-        value = value[1:]
-        value = value[:-1]
-
-        content = value.split(',')
-        content = [x.strip(' ') for x in content]
-        content = list(filter(None, content))
-
-        methods = ['GET', 'POST']
-        self.request_method = ""
-        self.request_url = ""
-        request_host = ""
-        self.request_cookies = ""
-        self.request_headers =  []
-
-        first = 0
-        for item in content:
-            if item.startswith(tuple(methods)):
-                self.request_method = item.split(' ')[0]
-                self.request_url = item.split(' ')[1]
-
-            elif item.startswith('Host'):
-                request_host = item.split(' ')[1]
-                request_host = 'curl_slist_append(headers, "Host: ' + request_host + '");'
-
-            elif item.startswith('Cookie'):
-                data = item.split(' ')
-                data.pop(0)
-                self.request_cookies = ' '.join(data)
-                self.request_cookies = 'curl_easy_setopt(request, CURLOPT_COOKIE, "' + self.request_cookies + '");'
-
-            else:
-                header_value = item.replace('"', "'")
-                if first == 1:
-                    header_value = '\t\tcurl_slist_append(headers, "' + header_value + '");'
-                else:
-                    header_value = 'curl_slist_append(headers, "' + header_value + '");'
-                self.request_headers.append(header_value)    
-                first = 1
-                
-        host = (request_host[request_host.find('"')+len('"'):request_host.rfind('"')]).split(' ')[1]
-        self.request_url =  '"'+host + self.request_url+'";' + '\n'
-        self.request_headers.append('\t\t' + request_host)
-        self.request_headers = self.request_headers = '\n'.join(self.request_headers)
-        
-        self.request_cookies = '// request cookies\n' + '\t\t' + self.request_cookies
-        if self.request_cookies.strip() == '// request cookies':
-            self.request_cookies = ''
-
-        if len(self.data) != 0:
-            self.request_post = 'static const char* post_content = "' + self.data + '";'
-        else
-            self.request_post = ""
-
-        self._stdout.println( 
-            (self.data)
-        )
-
+        self.form_data = ''.join(map(chr, self._context.getSelectedMessages()[0].getRequest())).split('\r\n\r\n')[1]
+        self.parse_output(request)
         return menu
 
 
-    def createProgram(self, event):
-        # handle post requests
-        post_code = "\n// post request\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_content);\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(post_content));\n"
-        if self.request_post == "":
-            post_code = ""
+    # Parse responses
+    def parse_output(self, request): 
+        self.request_url =  '"' + request.getUrl().toString() + '";'
+        self.request_method = request.getMethod()
+        
+        # get headers
+        self.request_headers = []
+        self.headers = request.getHeaders()
+        self.headers = dict(item.split(': ',1) for item in self.headers[1:])
+        
+        self.request_cookies = ''
+        self.request_post = ''
 
-        get_program = '''
+        i=0
+        for key, value in self.headers.items():
+            k = key.encode('ascii', 'ignore')
+            v = value.encode('ascii', 'ignore')
+            v = v.replace('"', "'")
+            hv = k+': '+v
+
+            header_value = ''
+            if 'Cookie' in k and self.request_cookies == '':
+                hv = hv.replace('Cookie: ', '')
+                self.request_cookies = '\t\tcurl_easy_setopt(request, CURLOPT_COOKIE, "' + hv + '");'
+                self.request_cookies = '\n\t\t// request cookies\n' + self.request_cookies + '\n'
+            else:
+                header_value = 'headers = curl_slist_append(headers, "' + hv + '");'
+                if i==0:
+                    self.request_headers.append(header_value)
+                else:
+                    self.request_headers.append('\t\t' + header_value)
+                i+=1
+
+        self.request_headers = self.request_headers = '\n'.join(self.request_headers)
+
+        if len(self.form_data) != 0:
+            self.request_post = '\n\t' + 'static const char* post_content = "' + self.form_data + '";' + '\n'
+
+
+
+    # Create C program
+    def create_program(self, event):
+            # handle post requests
+            post_code = ''
+            if self.request_post != '':
+                post_code = "\n\t\t// post request\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_content);\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(post_content));\n"
+            
+            get_program = '''
 /*************************************************************************** 
                             [~  __  ~]         
                             [  /  `  ] _ ._   .
@@ -137,7 +107,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory, IProxyListener):
 #include <string.h>
 #include <curl/curl.h>
 
-#define maxn 1000000 // max response length
+#define maxn 1000000
 
 /* Write curl output to variable */
 size_t static curl_write(void *buffer, size_t size, size_t nmemb, void *userp) {
@@ -150,12 +120,10 @@ int main(void) {
     CURL *request;
     CURLcode res;
     char* response = (char*)malloc(maxn * sizeof(char)); // response content
-
+    %s
     curl_global_init(CURL_GLOBAL_DEFAULT);
     request = curl_easy_init();
-
-    %s
-
+    
     // request url
     char* url = %s
     if (request) {
@@ -163,13 +131,13 @@ int main(void) {
         
         // request headers
         %s
-        
-        %s
+        curl_easy_setopt(request, CURLOPT_HTTPHEADER, headers);
         %s
         // send request
         curl_easy_setopt(request, CURLOPT_URL, url); 
-        curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write); // output variable
+        curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write);
         curl_easy_setopt(request, CURLOPT_WRITEDATA, response);
+        %s
         res = curl_easy_perform(request);
 
         curl_slist_free_all(headers);        
@@ -178,21 +146,19 @@ int main(void) {
 
     curl_global_cleanup();
 
-    // Do stuff with output
+    // Check output
     char* ret;
     ret = strstr(response, "google");
     if (ret)
-        printf("%s\n", response); // print output
+        printf("%%s", response);
     else
         printf("google was found in response");
 
     return 0;
 }
-        ''' % (self.request_post, self.request_url, self.request_headers, self.request_cookies, post_code)
+            ''' % (self.request_post, self.request_url, self.request_headers, self.request_cookies, post_code)
 
-        # copy to clipboard
-        s = StringSelection(get_program)
-        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
-        
+            # copy to clipboard
+            s = StringSelection(get_program)
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(s, s)
 
-        
