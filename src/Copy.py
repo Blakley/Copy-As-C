@@ -142,8 +142,11 @@ int main(void) {
         curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // [follow redirects]
         res = curl_easy_perform(request);
 
-        curl_slist_free_all(headers);        
+        if (res != CURLE_OK) // error check
+            fprintf(stderr, "curl_easy_perform() failed: %%s", curl_easy_strerror(res));
+
         curl_easy_cleanup(request);
+        curl_slist_free_all(headers);        
     }
     curl_global_cleanup();
 
