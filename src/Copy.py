@@ -46,8 +46,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         self.parse_output(request)
         return menu
 
-
-    # Parse responses
     def parse_output(self, request): 
         self.request_url =  '"' + request.getUrl().toString() + '";'
         self.request_method = request.getMethod()
@@ -85,9 +83,6 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
         if len(self.form_data) != 0:
             self.request_post = '\n\t' + 'static const char* post_content = "' + self.form_data + '";' + '\n'
 
-
-
-    # Create C program
     def create_program(self, event):
             # handle post requests
             post_code = ''
@@ -125,17 +120,18 @@ int main(void) {
     curl_global_init(CURL_GLOBAL_DEFAULT);
     request = curl_easy_init();
     
+    struct curl_slist *headers = NULL;
+
     // request url
     char* url = %s
     if (request) {
-        struct curl_slist *headers = NULL;
-        
+        curl_easy_setopt(request, CURLOPT_URL, url);
+
         // request headers
         %s
         curl_easy_setopt(request, CURLOPT_HTTPHEADER, headers);
         %s
-        // send request
-        curl_easy_setopt(request, CURLOPT_URL, url);       
+        // send request       
         curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write); 
         curl_easy_setopt(request, CURLOPT_WRITEDATA, response);
         %s
