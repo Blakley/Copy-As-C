@@ -71,6 +71,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
                 self.request_cookies = '\t\tcurl_easy_setopt(request, CURLOPT_COOKIE, "' + hv + '");'
                 self.request_cookies = '\n\t\t// request cookies\n' + self.request_cookies + '\n'
             else:
+                if 'Accept-Encoding' in hv:
+                    hv = 'Accept-Encoding: *';
                 header_value = 'headers = curl_slist_append(headers, "' + hv + '");'
                 if i==0:
                     self.request_headers.append(header_value)
@@ -114,7 +116,6 @@ size_t static curl_write(void *buffer, size_t size, size_t nmemb, void *userp) {
 int main(void) {
     CURL *request;
     CURLcode res;
-
     char* response = (char*)malloc(maxn * sizeof(char)); 
     %s
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -137,9 +138,6 @@ int main(void) {
         %s
         curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // [follow redirects]
         res = curl_easy_perform(request);
-
-        if (res != CURLE_OK) // error check
-            fprintf(stderr, "curl_easy_perform() failed: %%s", curl_easy_strerror(res));
 
         curl_easy_cleanup(request);
         curl_slist_free_all(headers);        
