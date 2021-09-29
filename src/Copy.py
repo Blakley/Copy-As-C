@@ -72,7 +72,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
                 self.request_cookies = '\n\t\t// request cookies\n' + self.request_cookies + '\n'
             else:
                 if 'Accept-Encoding' in hv:
-                    hv = 'Accept-Encoding: *';
+                    continue
                 header_value = 'headers = curl_slist_append(headers, "' + hv + '");'
                 if i==0:
                     self.request_headers.append(header_value)
@@ -89,7 +89,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
             # handle post requests
             post_code = ''
             if self.request_post != '':
-                post_code = "\n\t\t// post request\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_content);\n\t\tcurl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(post_content));\n"
+                post_code = "\n\t\t// post request\n\t\tcurl_easy_setopt(request, CURLOPT_POSTFIELDS, post_content);\n\t\tcurl_easy_setopt(request, CURLOPT_POSTFIELDSIZE, (long)strlen(post_content));\n"
             
             get_program = '''
 /*************************************************************************** 
@@ -132,19 +132,19 @@ int main(void) {
         %s
         curl_easy_setopt(request, CURLOPT_HTTPHEADER, headers);
         %s
-        // send request       
+            
         curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_write); 
         curl_easy_setopt(request, CURLOPT_WRITEDATA, response);
         %s
-        curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // [follow redirects]
-        res = curl_easy_perform(request);
+        curl_easy_setopt(request, CURLOPT_FOLLOWLOCATION, 1L); // follow redirects
+        res = curl_easy_perform(request); // send request   
 
         curl_easy_cleanup(request);
         curl_slist_free_all(headers);        
     }
     curl_global_cleanup();
 
-    printf("%%s", response);
+    printf("%%s", response); // print output
 
     return 0;
 }
