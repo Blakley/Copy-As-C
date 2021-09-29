@@ -22,3 +22,7 @@
 
 ### Output Screenshot
 ![Alt text](program.png?raw=true)
+
+### Todo
+* Dynamically manage response buffer
+* Add helpful code snippets
