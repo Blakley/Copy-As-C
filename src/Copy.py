@@ -102,7 +102,7 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <curl/curl.h>
+#include <curl.h>
 
 #define maxn 1000000
 
