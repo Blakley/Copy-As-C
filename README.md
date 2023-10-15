@@ -7,6 +7,7 @@
 ## Requirements
 * [Jython](https://www.jython.org/download.html) >= 2.7.2
 * [libcurl](https://curl.se/libcurl/) (to execute the C program)
+  * bash: `sudo apt-get install libcurl4-openssl-dev`
 
 ## Installation
 * Download Copy.y
